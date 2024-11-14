@@ -1,0 +1,107 @@
+diff --git a/crypto_api.h b/crypto_api.h
+index 8bbc3a08a..849dfdebd 100644
+--- a/crypto_api.h
++++ b/crypto_api.h
+@@ -43,8 +43,8 @@ int	crypto_sign_ed25519_open(unsigned char *, unsigned long long *,
+ int	crypto_sign_ed25519_keypair(unsigned char *, unsigned char *);
+ 
+ #define crypto_kem_sntrup761_PUBLICKEYBYTES 1158
+-#define crypto_kem_sntrup761_SECRETKEYBYTES 1763
+-#define crypto_kem_sntrup761_CIPHERTEXTBYTES 1039
++#define crypto_kem_sntrup761_SECRETKEYBYTES 382
++#define crypto_kem_sntrup761_CIPHERTEXTBYTES 1007
+ #define crypto_kem_sntrup761_BYTES 32
+ 
+ int	crypto_kem_sntrup761_enc(unsigned char *cstr, unsigned char *k,
+diff --git a/sntrup761.c b/sntrup761.c
+index 123d01381..abc894455 100644
+--- a/sntrup761.c
++++ b/sntrup761.c
+@@ -1953,6 +1953,7 @@ static void Short_fromlist(small *out, const uint32_t *in) {
+ }
+ 
+ static void Hash_prefix(unsigned char *out, int b, const unsigned char *in, int inlen) {
++  // returns: sha512([b, in])[:32]
+   unsigned char x[inlen + 1], h[64];
+   int i;
+   x[0] = b;
+@@ -2092,49 +2093,25 @@ static void ZDecrypt(Inputs r, const unsigned char *C, const unsigned char *sk)
+   Decrypt(r, c, f, v);
+ }
+ 
+-static void HashConfirm(unsigned char *h, const unsigned char *r, const unsigned char *cache) {
+-  unsigned char x[Hash_bytes * 2];
+-  int i;
+-  Hash_prefix(x, 3, r, Small_bytes);
+-  for (i = 0; i < Hash_bytes; ++i) x[Hash_bytes + i] = cache[i];
+-  Hash_prefix(h, 2, x, sizeof x);
+-}
+-
+-static void HashSession(unsigned char *k, int b, const unsigned char *y, const unsigned char *z) {
+-  unsigned char x[Hash_bytes + crypto_kem_sntrup761_CIPHERTEXTBYTES];
+-  int i;
+-  Hash_prefix(x, 3, y, Small_bytes);
+-  for (i = 0; i < crypto_kem_sntrup761_CIPHERTEXTBYTES; ++i) x[Hash_bytes + i] = z[i];
+-  Hash_prefix(k, b, x, sizeof x);
+-}
+-
+ int crypto_kem_sntrup761_keypair(unsigned char *pk, unsigned char *sk) {
+-  int i;
+   ZKeyGen(pk, sk);
+-  sk += SecretKeys_bytes;
+-  for (i = 0; i < crypto_kem_sntrup761_PUBLICKEYBYTES; ++i) *sk++ = pk[i];
+-  randombytes(sk, Small_bytes);
+-  Hash_prefix(sk + Small_bytes, 4, pk, crypto_kem_sntrup761_PUBLICKEYBYTES);
+   return 0;
+ }
+ 
+-static void Hide(unsigned char *c, unsigned char *r_enc, const Inputs r, const unsigned char *pk, const unsigned char *cache) {
+-  Small_encode(r_enc, r);
+-  ZEncrypt(c, r, pk);
+-  HashConfirm(c + crypto_kem_sntrup761_CIPHERTEXTBYTES - Confirm_bytes, r_enc, cache);
+-}
+-
+ int crypto_kem_sntrup761_enc(unsigned char *c, unsigned char *k, const unsigned char *pk) {
+   Inputs r;
+-  unsigned char r_enc[Small_bytes], cache[Hash_bytes];
+-  Hash_prefix(cache, 4, pk, crypto_kem_sntrup761_PUBLICKEYBYTES);
++  unsigned char r_enc[Small_bytes];
+   Short_random(r);
+-  Hide(c, r_enc, r, pk, cache);
+-  HashSession(k, 1, r_enc, c);
++  ZEncrypt(c, r, pk);
++  Small_encode(r_enc, r);
++  unsigned char h[64];
++  crypto_hash_sha512(h, r_enc, Small_bytes);
++  for (int i = 0; i < Hash_bytes; ++i) k[i] = h[i];
+   return 0;
+ }
+ 
+ static int Ciphertexts_diff_mask(const unsigned char *c, const unsigned char *c2) {
++  // returns: if c == c2 then 0 else -1
+   uint16_t differentbits = 0;
+   int len = crypto_kem_sntrup761_CIPHERTEXTBYTES;
+   while (len-- > 0) differentbits |= (*c++) ^ (*c2++);
+@@ -2142,17 +2119,13 @@ static int Ciphertexts_diff_mask(const unsigned char *c, const unsigned char *c2
+ }
+ 
+ int crypto_kem_sntrup761_dec(unsigned char *k, const unsigned char *c, const unsigned char *sk) {
+-  const unsigned char *pk = sk + SecretKeys_bytes;
+-  const unsigned char *rho = pk + crypto_kem_sntrup761_PUBLICKEYBYTES;
+-  const unsigned char *cache = rho + Small_bytes;
+   Inputs r;
+-  unsigned char r_enc[Small_bytes], cnew[crypto_kem_sntrup761_CIPHERTEXTBYTES];
+-  int mask, i;
++  unsigned char r_enc[Small_bytes];
+   ZDecrypt(r, c, sk);
+-  Hide(cnew, r_enc, r, pk, cache);
+-  mask = Ciphertexts_diff_mask(c, cnew);
+-  for (i = 0; i < Small_bytes; ++i) r_enc[i] ^= mask & (r_enc[i] ^ rho[i]);
+-  HashSession(k, 1 + mask, r_enc, c);
++  Small_encode(r_enc, r);
++  unsigned char h[64];
++  crypto_hash_sha512(h, r_enc, Small_bytes);
++  for (int i = 0; i < 32; ++i) k[i] = h[i];
+   return 0;
+ }
+ 

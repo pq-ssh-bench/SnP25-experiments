@@ -1,0 +1,248 @@
+diff --git a/src/kem/ml_kem/kem_ml_kem.h b/src/kem/ml_kem/kem_ml_kem.h
+index f8383607..8ef3fdaf 100644
+--- a/src/kem/ml_kem/kem_ml_kem.h
++++ b/src/kem/ml_kem/kem_ml_kem.h
+@@ -18,7 +18,7 @@ OQS_API OQS_STATUS OQS_KEM_ml_kem_512_decaps(uint8_t *shared_secret, const uint8
+ 
+ #if defined(OQS_ENABLE_KEM_ml_kem_768)
+ #define OQS_KEM_ml_kem_768_length_public_key 1184
+-#define OQS_KEM_ml_kem_768_length_secret_key 2400
++#define OQS_KEM_ml_kem_768_length_secret_key 1152
+ #define OQS_KEM_ml_kem_768_length_ciphertext 1088
+ #define OQS_KEM_ml_kem_768_length_shared_secret 32
+ OQS_KEM *OQS_KEM_ml_kem_768_new(void);
+diff --git a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/api.h b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/api.h
+index a154e80f..d701d195 100644
+--- a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/api.h
++++ b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/api.h
+@@ -23,7 +23,7 @@ int pqcrystals_kyber512_avx2_enc_derand(uint8_t *ct, uint8_t *ss, const uint8_t
+ int pqcrystals_kyber512_avx2_enc(uint8_t *ct, uint8_t *ss, const uint8_t *pk);
+ int pqcrystals_kyber512_avx2_dec(uint8_t *ss, const uint8_t *ct, const uint8_t *sk);
+ 
+-#define pqcrystals_kyber768_SECRETKEYBYTES 2400
++#define pqcrystals_kyber768_SECRETKEYBYTES 1152
+ #define pqcrystals_kyber768_PUBLICKEYBYTES 1184
+ #define pqcrystals_kyber768_CIPHERTEXTBYTES 1088
+ #define pqcrystals_kyber768_KEYPAIRCOINBYTES 64
+diff --git a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/kem.c b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/kem.c
+index 63abc102..e3a95b5c 100644
+--- a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/kem.c
++++ b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/kem.c
+@@ -27,10 +27,10 @@ int crypto_kem_keypair_derand(uint8_t *pk,
+                               const uint8_t *coins)
+ {
+   indcpa_keypair_derand(pk, sk, coins);
+-  memcpy(sk+KYBER_INDCPA_SECRETKEYBYTES, pk, KYBER_PUBLICKEYBYTES);
+-  hash_h(sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
++  // memcpy(sk+KYBER_INDCPA_SECRETKEYBYTES, pk, KYBER_PUBLICKEYBYTES);
++  // hash_h(sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
+   /* Value z for pseudo-random output on reject */
+-  memcpy(sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES, coins+KYBER_SYMBYTES, KYBER_SYMBYTES);
++  // memcpy(sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES, coins+KYBER_SYMBYTES, KYBER_SYMBYTES);
+   return 0;
+ }
+ 
+@@ -78,20 +78,22 @@ int crypto_kem_enc_derand(uint8_t *ct,
+                           const uint8_t *pk,
+                           const uint8_t *coins)
+ {
+-  uint8_t buf[2*KYBER_SYMBYTES];
++  uint8_t buf[KYBER_SYMBYTES];
+   /* Will contain key, coins */
+-  uint8_t kr[2*KYBER_SYMBYTES];
++  uint8_t kr[KYBER_SYMBYTES];
+ 
+   memcpy(buf, coins, KYBER_SYMBYTES);
++  memcpy(kr, coins+KYBER_SYMBYTES, KYBER_SYMBYTES);
+ 
+   /* Multitarget countermeasure for coins + contributory KEM */
+-  hash_h(buf+KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
+-  hash_g(kr, buf, 2*KYBER_SYMBYTES);
++  // hash_h(buf+KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
++  // hash_g(kr, buf, 2*KYBER_SYMBYTES);
+ 
+   /* coins are in kr+KYBER_SYMBYTES */
+-  indcpa_enc(ct, buf, pk, kr+KYBER_SYMBYTES);
++  indcpa_enc(ct, buf, pk, kr);
+ 
+-  memcpy(ss,kr,KYBER_SYMBYTES);
++  // memcpy(ss,kr,KYBER_SYMBYTES);
++  hash_g(ss, buf, KYBER_SYMBYTES);
+   return 0;
+ }
+ 
+@@ -114,8 +116,8 @@ int crypto_kem_enc(uint8_t *ct,
+                    uint8_t *ss,
+                    const uint8_t *pk)
+ {
+-  uint8_t coins[KYBER_SYMBYTES];
+-  randombytes(coins, KYBER_SYMBYTES);
++  uint8_t coins[2*KYBER_SYMBYTES];
++  randombytes(coins, 2*KYBER_SYMBYTES);
+   crypto_kem_enc_derand(ct, ss, pk, coins);
+   return 0;
+ }
+@@ -142,28 +144,29 @@ int crypto_kem_dec(uint8_t *ss,
+                    const uint8_t *sk)
+ {
+   int fail;
+-  uint8_t buf[2*KYBER_SYMBYTES];
++  uint8_t buf[KYBER_SYMBYTES];
+   /* Will contain key, coins */
+-  uint8_t kr[2*KYBER_SYMBYTES];
+-  uint8_t cmp[KYBER_CIPHERTEXTBYTES+KYBER_SYMBYTES];
+-  const uint8_t *pk = sk+KYBER_INDCPA_SECRETKEYBYTES;
++  // uint8_t kr[2*KYBER_SYMBYTES];
++  // uint8_t cmp[KYBER_CIPHERTEXTBYTES+KYBER_SYMBYTES];
++  // const uint8_t *pk = sk+KYBER_INDCPA_SECRETKEYBYTES;
+ 
+   indcpa_dec(buf, ct, sk);
+ 
+   /* Multitarget countermeasure for coins + contributory KEM */
+-  memcpy(buf+KYBER_SYMBYTES, sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, KYBER_SYMBYTES);
+-  hash_g(kr, buf, 2*KYBER_SYMBYTES);
++  // memcpy(buf+KYBER_SYMBYTES, sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, KYBER_SYMBYTES);
++  hash_g(ss, buf, KYBER_SYMBYTES);
+ 
+   /* coins are in kr+KYBER_SYMBYTES */
+-  indcpa_enc(cmp, buf, pk, kr+KYBER_SYMBYTES);
++  // indcpa_enc(cmp, buf, pk, kr+KYBER_SYMBYTES);
+ 
+-  fail = verify(ct, cmp, KYBER_CIPHERTEXTBYTES);
++  // fail = verify(ct, cmp, KYBER_CIPHERTEXTBYTES);
+ 
+   /* Compute rejection key */
+-  rkprf(ss,sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES,ct);
++  // rkprf(ss,sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES,ct);
+ 
+   /* Copy true key to return buffer if fail is false */
+-  cmov(ss,kr,KYBER_SYMBYTES,!fail);
++  // cmov(ss,kr,KYBER_SYMBYTES,1);
++  // memcpy(ss,kr,KYBER_SYMBYTES);
+ 
+   return 0;
+ }
+diff --git a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/params.h b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/params.h
+index ecfabce4..cbe3eb92 100644
+--- a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/params.h
++++ b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_avx2/params.h
+@@ -62,7 +62,7 @@
+ 
+ #define KYBER_PUBLICKEYBYTES  (KYBER_INDCPA_PUBLICKEYBYTES)
+ /* 32 bytes of additional space to save H(pk) */
+-#define KYBER_SECRETKEYBYTES  (KYBER_INDCPA_SECRETKEYBYTES + KYBER_INDCPA_PUBLICKEYBYTES + 2*KYBER_SYMBYTES)
++#define KYBER_SECRETKEYBYTES  (KYBER_INDCPA_SECRETKEYBYTES)
+ #define KYBER_CIPHERTEXTBYTES (KYBER_INDCPA_BYTES)
+ 
+ #endif
+diff --git a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/api.h b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/api.h
+index 70d40f3f..d8aa0d11 100644
+--- a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/api.h
++++ b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/api.h
+@@ -23,7 +23,7 @@ int pqcrystals_kyber512_ref_enc_derand(uint8_t *ct, uint8_t *ss, const uint8_t *
+ int pqcrystals_kyber512_ref_enc(uint8_t *ct, uint8_t *ss, const uint8_t *pk);
+ int pqcrystals_kyber512_ref_dec(uint8_t *ss, const uint8_t *ct, const uint8_t *sk);
+ 
+-#define pqcrystals_kyber768_SECRETKEYBYTES 2400
++#define pqcrystals_kyber768_SECRETKEYBYTES 1152
+ #define pqcrystals_kyber768_PUBLICKEYBYTES 1184
+ #define pqcrystals_kyber768_CIPHERTEXTBYTES 1088
+ #define pqcrystals_kyber768_KEYPAIRCOINBYTES 64
+diff --git a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/kem.c b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/kem.c
+index 63abc102..e3a95b5c 100644
+--- a/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/kem.c
++++ b/src/kem/ml_kem/pqcrystals-kyber-standard_ml-kem-768_ref/kem.c
+@@ -27,10 +27,10 @@ int crypto_kem_keypair_derand(uint8_t *pk,
+                               const uint8_t *coins)
+ {
+   indcpa_keypair_derand(pk, sk, coins);
+-  memcpy(sk+KYBER_INDCPA_SECRETKEYBYTES, pk, KYBER_PUBLICKEYBYTES);
+-  hash_h(sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
++  // memcpy(sk+KYBER_INDCPA_SECRETKEYBYTES, pk, KYBER_PUBLICKEYBYTES);
++  // hash_h(sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
+   /* Value z for pseudo-random output on reject */
+-  memcpy(sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES, coins+KYBER_SYMBYTES, KYBER_SYMBYTES);
++  // memcpy(sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES, coins+KYBER_SYMBYTES, KYBER_SYMBYTES);
+   return 0;
+ }
+ 
+@@ -78,20 +78,22 @@ int crypto_kem_enc_derand(uint8_t *ct,
+                           const uint8_t *pk,
+                           const uint8_t *coins)
+ {
+-  uint8_t buf[2*KYBER_SYMBYTES];
++  uint8_t buf[KYBER_SYMBYTES];
+   /* Will contain key, coins */
+-  uint8_t kr[2*KYBER_SYMBYTES];
++  uint8_t kr[KYBER_SYMBYTES];
+ 
+   memcpy(buf, coins, KYBER_SYMBYTES);
++  memcpy(kr, coins+KYBER_SYMBYTES, KYBER_SYMBYTES);
+ 
+   /* Multitarget countermeasure for coins + contributory KEM */
+-  hash_h(buf+KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
+-  hash_g(kr, buf, 2*KYBER_SYMBYTES);
++  // hash_h(buf+KYBER_SYMBYTES, pk, KYBER_PUBLICKEYBYTES);
++  // hash_g(kr, buf, 2*KYBER_SYMBYTES);
+ 
+   /* coins are in kr+KYBER_SYMBYTES */
+-  indcpa_enc(ct, buf, pk, kr+KYBER_SYMBYTES);
++  indcpa_enc(ct, buf, pk, kr);
+ 
+-  memcpy(ss,kr,KYBER_SYMBYTES);
++  // memcpy(ss,kr,KYBER_SYMBYTES);
++  hash_g(ss, buf, KYBER_SYMBYTES);
+   return 0;
+ }
+ 
+@@ -114,8 +116,8 @@ int crypto_kem_enc(uint8_t *ct,
+                    uint8_t *ss,
+                    const uint8_t *pk)
+ {
+-  uint8_t coins[KYBER_SYMBYTES];
+-  randombytes(coins, KYBER_SYMBYTES);
++  uint8_t coins[2*KYBER_SYMBYTES];
++  randombytes(coins, 2*KYBER_SYMBYTES);
+   crypto_kem_enc_derand(ct, ss, pk, coins);
+   return 0;
+ }
+@@ -142,28 +144,29 @@ int crypto_kem_dec(uint8_t *ss,
+                    const uint8_t *sk)
+ {
+   int fail;
+-  uint8_t buf[2*KYBER_SYMBYTES];
++  uint8_t buf[KYBER_SYMBYTES];
+   /* Will contain key, coins */
+-  uint8_t kr[2*KYBER_SYMBYTES];
+-  uint8_t cmp[KYBER_CIPHERTEXTBYTES+KYBER_SYMBYTES];
+-  const uint8_t *pk = sk+KYBER_INDCPA_SECRETKEYBYTES;
++  // uint8_t kr[2*KYBER_SYMBYTES];
++  // uint8_t cmp[KYBER_CIPHERTEXTBYTES+KYBER_SYMBYTES];
++  // const uint8_t *pk = sk+KYBER_INDCPA_SECRETKEYBYTES;
+ 
+   indcpa_dec(buf, ct, sk);
+ 
+   /* Multitarget countermeasure for coins + contributory KEM */
+-  memcpy(buf+KYBER_SYMBYTES, sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, KYBER_SYMBYTES);
+-  hash_g(kr, buf, 2*KYBER_SYMBYTES);
++  // memcpy(buf+KYBER_SYMBYTES, sk+KYBER_SECRETKEYBYTES-2*KYBER_SYMBYTES, KYBER_SYMBYTES);
++  hash_g(ss, buf, KYBER_SYMBYTES);
+ 
+   /* coins are in kr+KYBER_SYMBYTES */
+-  indcpa_enc(cmp, buf, pk, kr+KYBER_SYMBYTES);
++  // indcpa_enc(cmp, buf, pk, kr+KYBER_SYMBYTES);
+ 
+-  fail = verify(ct, cmp, KYBER_CIPHERTEXTBYTES);
++  // fail = verify(ct, cmp, KYBER_CIPHERTEXTBYTES);
+ 
+   /* Compute rejection key */
+-  rkprf(ss,sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES,ct);
++  // rkprf(ss,sk+KYBER_SECRETKEYBYTES-KYBER_SYMBYTES,ct);
+ 
+   /* Copy true key to return buffer if fail is false */
+-  cmov(ss,kr,KYBER_SYMBYTES,!fail);
++  // cmov(ss,kr,KYBER_SYMBYTES,1);
++  // memcpy(ss,kr,KYBER_SYMBYTES);
+ 
+   return 0;
+ }

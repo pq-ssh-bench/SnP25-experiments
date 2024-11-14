@@ -1,0 +1,11 @@
+Port 2222
+HostKey ~/pq-ssh/openssh-portable-mlkem768/build/etc/ssh_host_ed25519_key
+LogLevel QUIET
+PubkeyAuthentication yes
+AuthorizedKeysFile	~/pq-ssh/openssh-portable-mlkem768/build/etc/authorized_keys
+PasswordAuthentication no
+Subsystem	sftp	~/pq-ssh/openssh-portable-mlkem768/build/libexec/sftp-server
+PerSourcePenalties no
+KexAlgorithms mlkem768x25519-sha256
+HostKeyAlgorithms ssh-ed25519
+PubkeyAcceptedKeyTypes ssh-ed25519

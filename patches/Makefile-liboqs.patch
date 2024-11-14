@@ -1,0 +1,79 @@
+diff --git a/Makefile b/Makefile
+index a3b2e4f..4ec1eed 100644
+--- a/Makefile
++++ b/Makefile
+@@ -48,7 +48,7 @@ CC=cc
+ LD=cc
+ CFLAGS=-g -O2 -pipe -Wno-error=format-truncation -Wall -Wextra -Wpointer-arith -Wuninitialized -Wsign-compare -Wformat-security -Wsizeof-pointer-memaccess -Wno-pointer-sign -Wno-unused-parameter -Wno-unused-result -Wimplicit-fallthrough -Wmisleading-indentation -fno-strict-aliasing -D_FORTIFY_SOURCE=2 -ftrapv -fzero-call-used-regs=used -ftrivial-auto-var-init=zero -fno-builtin-memset -fstack-protector-strong -fPIE  
+ CFLAGS_NOPIE=-g -O2 -pipe -Wno-error=format-truncation -Wall -Wextra -Wpointer-arith -Wuninitialized -Wsign-compare -Wformat-security -Wsizeof-pointer-memaccess -Wno-pointer-sign -Wno-unused-parameter -Wno-unused-result -Wimplicit-fallthrough -Wmisleading-indentation -fno-strict-aliasing -D_FORTIFY_SOURCE=2 -ftrapv -fzero-call-used-regs=used -ftrivial-auto-var-init=zero -fno-builtin-memset -fstack-protector-strong  
+-CPPFLAGS=-I. -I$(srcdir)  -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE -DOPENSSL_API_COMPAT=0x10100000L $(PATHS) -DHAVE_CONFIG_H
++CPPFLAGS=-I. -I$(srcdir) -Iliboqs/include/ -D_XOPEN_SOURCE=600 -D_BSD_SOURCE -D_DEFAULT_SOURCE -D_GNU_SOURCE -DOPENSSL_API_COMPAT=0x10100000L $(PATHS) -DHAVE_CONFIG_H
+ PICFLAG=-fPIC
+ LIBS=-lmd 
+ CHANNELLIBS=-lcrypto  -lz
+@@ -63,7 +63,7 @@ RANLIB=ranlib
+ INSTALL=/usr/bin/install -c
+ SED=/usr/bin/sed
+ XAUTH_PATH=/usr/bin/xauth
+-LDFLAGS=-L. -Lopenbsd-compat/  -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -fstack-protector-strong -pie 
++LDFLAGS=-L. -Lopenbsd-compat/ -Lliboqs/lib/ -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -fstack-protector-strong -pie 
+ LDFLAGS_NOPIE=-L. -Lopenbsd-compat/  -Wl,-z,relro -Wl,-z,now -Wl,-z,noexecstack -fstack-protector-strong 
+ EXEEXT=
+ MANFMT=/usr/bin/nroff -mandoc
+@@ -212,43 +212,43 @@ libssh.a: $(LIBSSH_OBJS)
+ 	$(RANLIB) $@
+ 
+ ssh$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHOBJS)
+-	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(GSSLIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHOBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(LIBS) $(GSSLIBS) $(CHANNELLIBS)
+ 
+ sshd$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHDOBJS)
+-	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHDOBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(CHANNELLIBS)
+ 
+ sshd-session$(EXEEXT): libssh.a	$(LIBCOMPAT) $(SSHD_SESSION_OBJS)
+-	$(LD) -o $@ $(SSHD_SESSION_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHD_SESSION_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(SSHDLIBS) $(LIBS) $(GSSLIBS) $(K5LIBS) $(CHANNELLIBS)
+ 
+ scp$(EXEEXT): $(LIBCOMPAT) libssh.a $(SCP_OBJS)
+-	$(LD) -o $@ $(SCP_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS)
++	$(LD) -o $@ $(SCP_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(LIBS)
+ 
+ ssh-add$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHADD_OBJS)
+-	$(LD) -o $@ $(SSHADD_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHADD_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
+ 
+ ssh-agent$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHAGENT_OBJS)
+-	$(LD) -o $@ $(SSHAGENT_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHAGENT_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
+ 
+ ssh-keygen$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHKEYGEN_OBJS)
+-	$(LD) -o $@ $(SSHKEYGEN_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHKEYGEN_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
+ 
+ ssh-keysign$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHKEYSIGN_OBJS)
+-	$(LD) -o $@ $(SSHKEYSIGN_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHKEYSIGN_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
+ 
+ ssh-pkcs11-helper$(EXEEXT): $(LIBCOMPAT) libssh.a $(P11HELPER_OBJS)
+-	$(LD) -o $@ $(P11HELPER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(P11HELPER_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS) $(CHANNELLIBS)
+ 
+ ssh-sk-helper$(EXEEXT): $(LIBCOMPAT) libssh.a $(SKHELPER_OBJS)
+-	$(LD) -o $@ $(SKHELPER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS) $(LIBFIDO2) $(CHANNELLIBS)
++	$(LD) -o $@ $(SKHELPER_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat -lssh -lopenbsd-compat $(LIBS) $(LIBFIDO2) $(CHANNELLIBS)
+ 
+ ssh-keyscan$(EXEEXT): $(LIBCOMPAT) libssh.a $(SSHKEYSCAN_OBJS)
+-	$(LD) -o $@ $(SSHKEYSCAN_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS) $(CHANNELLIBS)
++	$(LD) -o $@ $(SSHKEYSCAN_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat -lssh $(LIBS) $(CHANNELLIBS)
+ 
+ sftp-server$(EXEEXT): $(LIBCOMPAT) libssh.a $(SFTPSERVER_OBJS)
+-	$(LD) -o $@ $(SFTPSERVER_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat -lssh $(LIBS)
++	$(LD) -o $@ $(SFTPSERVER_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat -lssh $(LIBS)
+ 
+ sftp$(EXEEXT): $(LIBCOMPAT) libssh.a $(SFTP_OBJS)
+-	$(LD) -o $@ $(SFTP_OBJS) $(LDFLAGS) -lssh -lopenbsd-compat $(LIBS) $(LIBEDIT)
++	$(LD) -o $@ $(SFTP_OBJS) $(LDFLAGS) -lssh -loqs -lopenbsd-compat $(LIBS) $(LIBEDIT)
+ 
+ # test driver for the loginrec code - not built by default
+ logintest: logintest.o $(LIBCOMPAT) libssh.a loginrec.o

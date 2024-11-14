@@ -1,0 +1,11 @@
+Host test
+    KexAlgorithms mlkem768x25519-sha256
+    HostKeyAlgorithms ssh-ed25519
+    PubkeyAcceptedKeyTypes ssh-ed25519
+    Hostname localhost
+    Port 2222
+    IdentityFile ~/pq-ssh/openssh-portable-mlkem768/build/etc/ed25519-client
+    IdentitiesOnly yes
+    UserKnownHostsFile ~/pq-ssh/openssh-portable-mlkem768/build/etc/known_hosts
+    IdentityAgent none
+    
